@@ -1,15 +1,12 @@
-package main
+package handlers
 
 import (
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"github.com/go-chi/chi"
-	_ "github.com/gorilla/mux"
 	"log"
 	"net/http"
-	_ "strconv"
-	_ "strings"
 )
 
 // WalletOperationRequest - структура для депозита и снятия средств.
@@ -18,7 +15,6 @@ type WalletOperationRequest struct {
 	OperationType string  `json:"operationType"`
 	Amount        float64 `json:"amount"`
 }
-
 
 // WalletOperationHandler - функция для типов операций над кошельком, DEPOSIT или WITHDRAWAL
 
@@ -45,7 +41,7 @@ func WalletOperationHandler(db *sql.DB) http.HandlerFunc {
 		}
 
 		//
-		userID, err := validateAPIKey(db, apiKey)
+		userID, err := ValidateAPIKey(db, apiKey)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				http.Error(w, "Invalid API key", http.StatusUnauthorized)
@@ -116,7 +112,7 @@ func GetBalanceHandler(db *sql.DB) http.HandlerFunc {
 		}
 
 		// Валидация АПИ.
-		userID, err := validateAPIKey(db, apiKey)
+		userID, err := ValidateAPIKey(db, apiKey)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				http.Error(w, "Invalid API key", http.StatusUnauthorized)

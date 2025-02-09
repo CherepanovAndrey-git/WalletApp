@@ -2,8 +2,11 @@
 
 set -e
 
+echo "Waiting for the database to be ready..."
+/app/wait-for-db.sh db
+
 echo "Running migrations..."
-goose -dir /app/sql postgres "$DB_URL" up
+/app/goose -dir /app/sql postgres "$DB_URL" up
 
 echo "Starting application..."
-exec ./main
+exec /app/main
