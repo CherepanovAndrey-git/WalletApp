@@ -2,29 +2,25 @@ package utils
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
+	"strconv"
 )
 
-func RespondWithError(w http.ResponseWriter, code int, msg string) {
-	if code > 499 {
-		log.Println("Responding with 5XX err:", msg)
-	}
-	type errResponse struct {
-		Error string `json:"error"`
-	}
-
-	RespondWithJSON(w, code, errResponse{Error: msg})
+// ParseStringToFloat64 converts a string to float64.
+func ParseStringToFloat64(value string) float64 {
+	parsedValue, _ := strconv.ParseFloat(value, 64)
+	return parsedValue
 }
 
-func RespondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
-	dat, err := json.Marshal(payload)
-	if err != nil {
-		log.Printf("failed to marshal JSON response: %v", payload)
-		w.WriteHeader(500)
-		return
-	}
-	w.Header().Add("Content-Type", "application/json")
-	w.WriteHeader(code)
-	w.Write(dat)
+// RespondWithError sends an error response.
+func RespondWithError(w http.ResponseWriter, statusCode int, message string) {
+	w.WriteHeader(statusCode)
+	json.NewEncoder(w).Encode(map[string]string{"error": message})
+}
+
+// RespondWithJSON sends a JSON response.
+func RespondWithJSON(w http.ResponseWriter, statusCode int, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	json.NewEncoder(w).Encode(data)
 }

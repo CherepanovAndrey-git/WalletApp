@@ -7,20 +7,18 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
-	"github.com/swaggo/http-swagger"
 	"log"
 	"net/http"
 	"os"
 	"time"
+
+	httpSwagger "github.com/swaggo/http-swagger"
 	"wallet-app/internal/database"
 	"wallet-app/internal/handlers"
 	"wallet-app/internal/middleware"
 	"wallet-app/internal/models/apicfg"
+	_ "wallet-app/swagger/docs"
 )
-
-type apiConfig struct {
-	DB *database.Queries
-}
 
 func main() {
 	err := godotenv.Load()
@@ -48,7 +46,7 @@ func main() {
 	conn.SetMaxIdleConns(10)
 	conn.SetConnMaxLifetime(30 * time.Minute)
 
-	if err := conn.Ping(); err != nil {
+	if err = conn.Ping(); err != nil {
 		log.Fatal("Database connection failed:", err)
 	}
 
@@ -73,15 +71,22 @@ func main() {
 	v1Router.Get("/health", handlers.HandlerReadiness)
 	v1Router.Get("/err", handlers.HandlerErr)
 
-	v1Router.Post("/users", handlers.HandlerCreateUser(&apiCfg))
-	v1Router.Get("/users", middleware.Auth(&apiCfg, func(w http.ResponseWriter, r *http.Request, user database.User) {
-		handlers.HandlerGetUser(&apiCfg)(w, r)
-	}))
+	authHandler := handlers.AuthHandler{DB: apiCfg.DB}
 
-	v1Router.Post("/wallet", handlers.WalletOperationHandler(conn))
-	v1Router.Get("/wallets/{uuid}/balance", handlers.GetBalanceHandler(conn))
-	v1Router.Post("/wallets", handlers.CreateWalletHandler(conn))
-	v1Router.Get("/swagger/*", httpSwagger.WrapHandler) //TODO: Annotations for swagger, this is mock for now.
+	v1Router.Post("/register", authHandler.Register)
+	v1Router.Post("/login", authHandler.Login)
+
+	v1Router.Group(func(r chi.Router) {
+		r.Use(middleware.AuthMiddleware)
+		r.Post("/create-wallet", handlers.CreateWalletHandler(apiCfg.DB))
+		r.Post("/wallet/deposit", handlers.WalletOperationHandler(apiCfg.DB))
+		r.Post("/wallet/withdraw", handlers.WalletOperationHandler(apiCfg.DB))
+		r.Get("/balance", handlers.GetBalanceHandler(apiCfg.DB))
+	})
+
+	v1Router.Get("/swagger/*", httpSwagger.Handler(
+		httpSwagger.URL("/v1/swagger/doc.json"),
+	))
 
 	router.Mount("/v1", v1Router)
 

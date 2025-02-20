@@ -1,30 +1,44 @@
 package middleware
 
 import (
-	"fmt"
+	"context"
+	"log"
 	"net/http"
+	"strings"
+
 	"wallet-app/internal/auth"
-	"wallet-app/internal/database"
-	"wallet-app/internal/models/apicfg"
 	"wallet-app/internal/utils"
 )
 
-type authedHandler func(http.ResponseWriter, *http.Request, database.User)
-
-func Auth(apiCfg *apicfg.ApiConfig, handler authedHandler) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		apiKey, err := auth.GetAPIKey(r.Header)
-		if err != nil {
-			utils.RespondWithError(w, 403, fmt.Sprintf("Auth error: %v", err))
+func AuthMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" {
+			utils.RespondWithError(w, http.StatusUnauthorized, "Authorization header required")
 			return
 		}
 
-		user, err := apiCfg.DB.GetUserByAPIkey(r.Context(), apiKey)
-		if err != nil {
-			utils.RespondWithError(w, 400, fmt.Sprintf("Couldn't get use: %v", err))
+		log.Printf("Auth header: %s", authHeader[:10])
+
+		bearerToken := strings.Split(authHeader, " ")
+		if len(bearerToken) != 2 || bearerToken[0] != "Bearer" {
+			log.Printf("Invalid auth format: %v", bearerToken)
+			utils.RespondWithError(w, http.StatusUnauthorized, "Invalid authorization format")
 			return
 		}
 
-		handler(w, r, user)
-	}
+		tokenString := bearerToken[1]
+
+		claims, err := auth.ParseToken(tokenString)
+		if err != nil {
+			log.Printf("Token parsing error: %v", err)
+			utils.RespondWithError(w, http.StatusUnauthorized, "Invalid token")
+			return
+		}
+
+		log.Printf("Valid token for user: %s", claims.UserID)
+
+		ctx := context.WithValue(r.Context(), "user_id", claims.UserID)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
 }

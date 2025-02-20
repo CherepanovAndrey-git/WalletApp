@@ -13,18 +13,18 @@ import (
 )
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users(id, created_at, updated_at, name, api_key)
-VALUES ($1, $2, $3, $4,
-        encode(sha256(random()::text::bytea), 'hex')
-        )
-RETURNING id, created_at, updated_at, name, api_key
+INSERT INTO users (id, created_at, updated_at, username, email, password_hash)
+VALUES ($1, $2, $3, $4, $5, $6)
+    RETURNING id, username, email, password_hash, created_at, updated_at
 `
 
 type CreateUserParams struct {
-	ID        uuid.UUID
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	Name      string
+	ID           uuid.UUID
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	Username     string
+	Email        string
+	PasswordHash string
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
@@ -32,32 +32,98 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		arg.ID,
 		arg.CreatedAt,
 		arg.UpdatedAt,
-		arg.Name,
+		arg.Username,
+		arg.Email,
+		arg.PasswordHash,
 	)
 	var i User
 	err := row.Scan(
 		&i.ID,
+		&i.Username,
+		&i.Email,
+		&i.PasswordHash,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.Name,
-		&i.ApiKey,
 	)
 	return i, err
 }
 
-const getUserByAPIkey = `-- name: GetUserByAPIkey :one
-SELECT id, created_at, updated_at, name, api_key FROM users WHERE api_key = $1
+const deleteUser = `-- name: DeleteUser :exec
+DELETE FROM users WHERE id = $1
 `
 
-func (q *Queries) GetUserByAPIkey(ctx context.Context, apiKey string) (User, error) {
-	row := q.db.QueryRowContext(ctx, getUserByAPIkey, apiKey)
+func (q *Queries) DeleteUser(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, deleteUser, id)
+	return err
+}
+
+const getUserByEmail = `-- name: GetUserByEmail :one
+SELECT id, username, email, password_hash, created_at, updated_at FROM users WHERE email = $1
+`
+
+func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByEmail, email)
 	var i User
 	err := row.Scan(
 		&i.ID,
+		&i.Username,
+		&i.Email,
+		&i.PasswordHash,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.Name,
-		&i.ApiKey,
 	)
 	return i, err
+}
+
+const getUserByID = `-- name: GetUserByID :one
+SELECT id, username, email, password_hash, created_at, updated_at FROM users WHERE id = $1
+`
+
+func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByID, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Email,
+		&i.PasswordHash,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getUserByUsername = `-- name: GetUserByUsername :one
+SELECT id, username, email, password_hash, created_at, updated_at FROM users
+WHERE username = $1 LIMIT 1
+`
+
+func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByUsername, username)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Email,
+		&i.PasswordHash,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateUserPassword = `-- name: UpdateUserPassword :exec
+UPDATE users
+SET password_hash = $2, updated_at = now()
+WHERE id = $1
+`
+
+type UpdateUserPasswordParams struct {
+	ID           uuid.UUID
+	PasswordHash string
+}
+
+func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserPassword, arg.ID, arg.PasswordHash)
+	return err
 }

@@ -9,4 +9,4 @@ echo "Running migrations..."
 /app/goose -dir /app/sql postgres "$DB_URL" up
 
 echo "Starting application..."
-exec /app/main
+/app/main
