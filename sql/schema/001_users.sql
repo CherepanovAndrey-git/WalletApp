@@ -7,7 +7,10 @@ CREATE TABLE users (
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP NOT NULL
 );
+-- Add an indexes for faster lookups
+CREATE UNIQUE INDEX idx_users_uuid ON users (id);
+CREATE UNIQUE INDEX idx_users_email ON users (email);
+CREATE UNIQUE INDEX idx_users_username ON users (username);
 
 -- +goose Down
-
     DROP TABLE users;

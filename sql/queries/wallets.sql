@@ -1,28 +1,26 @@
 -- name: CreateWallet :one
-INSERT INTO wallets (
-    user_id,
-    balance
-) VALUES (
-    $1,
-    '0.00'
-) RETURNING *;
+INSERT INTO wallets (user_id) VALUES ($1)
+    RETURNING id, uuid, user_id, balance_usd, balance_rub, balance_eur, created_at, updated_at;
 
 -- name: GetWalletByUserID :one
-SELECT * FROM wallets 
+SELECT id, uuid, user_id, balance_usd, balance_rub, balance_eur, created_at, updated_at
+FROM wallets
 WHERE user_id = $1 LIMIT 1;
 
--- name: UpdateWalletBalance :exec
+-- name: UpdateUSDBalance :exec
 UPDATE wallets
-SET 
-    balance = CAST(balance AS DECIMAL(18,2)) + CAST(sqlc.arg(Amount) AS DECIMAL(18,2)),
+SET balance_usd = balance_usd + CAST(sqlc.arg(amount) AS NUMERIC(18,2)),
     updated_at = now()
-WHERE user_id = sqlc.arg(UserID);
+WHERE user_id = sqlc.arg(user_id);
 
--- name: GetWalletBalance :one
-SELECT balance FROM wallets
-WHERE user_id = $1;
+-- name: UpdateRUBBalance :exec
+UPDATE wallets
+SET balance_rub = balance_rub + CAST(sqlc.arg(amount) AS NUMERIC(18,2)),
+    updated_at = now()
+WHERE user_id = sqlc.arg(user_id);
 
-
-ALTER TABLE wallets ADD COLUMN usd_balance NUMERIC(18,2) DEFAULT 0.0;
-ALTER TABLE wallets ADD COLUMN eur_balance NUMERIC(18,2) DEFAULT 0.0;
-ALTER TABLE wallets ADD COLUMN rub_balance NUMERIC(18,2) DEFAULT 0.0;
+-- name: UpdateEURBalance :exec
+UPDATE wallets
+SET balance_eur = balance_eur + CAST(sqlc.arg(amount) AS NUMERIC(18,2)),
+    updated_at = now()
+WHERE user_id = sqlc.arg(user_id);

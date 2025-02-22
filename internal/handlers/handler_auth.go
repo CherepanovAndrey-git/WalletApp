@@ -2,14 +2,14 @@ package handlers
 
 import (
 	"encoding/json"
+	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 	"net/http"
 	"strings"
 	"time"
-	"github.com/google/uuid"
+	"wallet-app/internal/auth"
 	"wallet-app/internal/database"
 	"wallet-app/internal/utils"
-	"golang.org/x/crypto/bcrypt"
-	"wallet-app/internal/auth"
 )
 
 type AuthHandler struct {
@@ -32,6 +32,7 @@ type RegisterRequest struct {
 // @Failure 400 {object} map[string]string "Invalid request payload"
 // @Failure 409 {object} map[string]string "User already exists"
 // @Router /v1/register [post]
+
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

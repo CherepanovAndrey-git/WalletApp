@@ -5,24 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
-	"strings"
-	"time"
-
-	"wallet-app/internal/database"
-	"wallet-app/internal/utils"
-
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"net/http"
+	"strings"
+	"wallet-app/internal/database"
+	"wallet-app/internal/utils"
 )
-
-type Wallet struct {
-	ID        uuid.UUID `json:"id"`
-	UserID    uuid.UUID `json:"user_id"`
-	Balance   string    `json:"balance"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
 
 type WalletOperationRequest struct {
 	Amount   float64 `json:"amount"`
@@ -39,7 +28,6 @@ type WalletOperationRequest struct {
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 500 {object} map[string]string "Internal server error"
 // @Router /v1/create-wallet [post]
-
 func CreateWalletHandler(db *database.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, ok := r.Context().Value("user_id").(uuid.UUID)
@@ -51,19 +39,21 @@ func CreateWalletHandler(db *database.Queries) http.HandlerFunc {
 		// Check if wallet already exists
 		existingWallet, err := db.GetWalletByUserID(r.Context(), userID)
 		if err == nil {
-			
 			utils.RespondWithJSON(w, http.StatusOK, map[string]interface{}{
 				"message": "Wallet already exists",
-				"balance": existingWallet.Balance,
+				"balances": map[string]float64{
+					"USD": utils.ParseStringToFloat64(existingWallet.BalanceUsd),
+					"RUB": utils.ParseStringToFloat64(existingWallet.BalanceRub),
+					"EUR": utils.ParseStringToFloat64(existingWallet.BalanceEur),
+				},
 			})
 			return
 		} else if !errors.Is(err, sql.ErrNoRows) {
-			
 			utils.RespondWithError(w, http.StatusInternalServerError, "Failed to check wallet")
 			return
 		}
 
-		// Create new wallet only if it doesn't exist
+		// Create new wallet
 		wallet, err := db.CreateWallet(r.Context(), userID)
 		if err != nil {
 			utils.RespondWithError(w, http.StatusInternalServerError, "Failed to create wallet")
@@ -72,23 +62,27 @@ func CreateWalletHandler(db *database.Queries) http.HandlerFunc {
 
 		utils.RespondWithJSON(w, http.StatusCreated, map[string]interface{}{
 			"message": "Wallet created successfully",
-			"balance": wallet.Balance,
+			"balances": map[string]float64{
+				"USD": utils.ParseStringToFloat64(wallet.BalanceUsd),
+				"RUB": utils.ParseStringToFloat64(wallet.BalanceRub),
+				"EUR": utils.ParseStringToFloat64(wallet.BalanceEur),
+			},
 		})
 	}
 }
 
-// @Summary Deposit money
-// @Description Deposit money into user's wallet
+// @Summary Deposit/Withdraw money
+// @Description Handle deposit or withdrawal for user's wallet
 // @Tags wallet
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param request body WalletOperationRequest true "Deposit details"
+// @Param request body WalletOperationRequest true "Operation details"
 // @Success 200 {object} map[string]interface{} "Operation successful"
+// @Failure 400 {object} map[string]string "Invalid request"
 // @Failure 401 {object} map[string]string "Unauthorized"
-// @Failure 400 {object} map[string]string "Invalid request payload"
 // @Failure 500 {object} map[string]string "Internal server error"
-// @Router /v1/wallet/deposit [post]
+// @Router /v1/wallet/{operation} [post]
 func WalletOperationHandler(db *database.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, ok := r.Context().Value("user_id").(uuid.UUID)
@@ -103,24 +97,77 @@ func WalletOperationHandler(db *database.Queries) http.HandlerFunc {
 			return
 		}
 
-		
-		isDeposit := strings.HasSuffix(r.URL.Path, "/deposit")
-		amount := req.Amount
-		if !isDeposit {
-			amount = -amount 
+		// Validate currency
+		validCurrencies := map[string]bool{"USD": true, "RUB": true, "EUR": true}
+		if !validCurrencies[req.Currency] {
+			utils.RespondWithError(w, http.StatusBadRequest, "Invalid currency. Allowed: USD, RUB, EUR")
+			return
 		}
 
-		
-		err := db.UpdateWalletBalance(r.Context(), database.UpdateWalletBalanceParams{
-			Userid: userID,
-			Amount: fmt.Sprintf("%.2f", amount),
-		})
+		// Validate amount
+		if req.Amount <= 0 {
+			utils.RespondWithError(w, http.StatusBadRequest, "Amount must be positive")
+			return
+		}
+
+		isDeposit := strings.HasSuffix(r.URL.Path, "/deposit")
+		operationAmount := req.Amount
+		if !isDeposit {
+			operationAmount = -operationAmount
+		}
+
+		// Handle withdrawal specific checks
+		if !isDeposit {
+			wallet, err := db.GetWalletByUserID(r.Context(), userID)
+			if err != nil {
+				utils.RespondWithError(w, http.StatusInternalServerError, "Failed to check balance")
+				return
+			}
+
+			var currentBalance float64
+			switch req.Currency {
+			case "USD":
+				currentBalance = utils.ParseStringToFloat64(wallet.BalanceUsd)
+			case "RUB":
+				currentBalance = utils.ParseStringToFloat64(wallet.BalanceRub)
+			case "EUR":
+				currentBalance = utils.ParseStringToFloat64(wallet.BalanceEur)
+			}
+
+			if currentBalance < req.Amount {
+				utils.RespondWithError(w, http.StatusBadRequest, "Insufficient funds")
+				return
+			}
+		}
+
+		amountStr := fmt.Sprintf("%.2f", operationAmount)
+
+		// Update the appropriate currency balance
+		var err error
+		switch req.Currency {
+		case "USD":
+			err = db.UpdateUSDBalance(r.Context(), database.UpdateUSDBalanceParams{
+				Amount: amountStr,
+				UserID: userID,
+			})
+		case "RUB":
+			err = db.UpdateRUBBalance(r.Context(), database.UpdateRUBBalanceParams{
+				Amount: amountStr,
+				UserID: userID,
+			})
+		case "EUR":
+			err = db.UpdateEURBalance(r.Context(), database.UpdateEURBalanceParams{
+				Amount: amountStr,
+				UserID: userID,
+			})
+		}
+
 		if err != nil {
 			utils.RespondWithError(w, http.StatusInternalServerError, "Failed to update balance")
 			return
 		}
 
-		
+		// Get updated wallet state
 		updatedWallet, err := db.GetWalletByUserID(r.Context(), userID)
 		if err != nil {
 			utils.RespondWithError(w, http.StatusInternalServerError, "Failed to fetch updated balance")
@@ -129,20 +176,25 @@ func WalletOperationHandler(db *database.Queries) http.HandlerFunc {
 
 		utils.RespondWithJSON(w, http.StatusOK, map[string]interface{}{
 			"message": "Operation successful",
-			"balance": updatedWallet.Balance,
+			"new_balance": map[string]float64{
+				"USD": utils.ParseStringToFloat64(updatedWallet.BalanceUsd),
+				"RUB": utils.ParseStringToFloat64(updatedWallet.BalanceRub),
+				"EUR": utils.ParseStringToFloat64(updatedWallet.BalanceEur),
+			},
 		})
 	}
 }
 
 // @Summary Get wallet balance
-// @Description Get current balance of user's wallet
+// @Description Get current balance of user's wallet in all currencies
 // @Tags wallet
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {object} map[string]float64 "Wallet balance"
+// @Success 200 {object} map[string]map[string]float64 "Wallet balances"
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 404 {object} map[string]string "Wallet not found"
 // @Router /v1/balance [get]
+
 func GetBalanceHandler(db *database.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, ok := r.Context().Value("user_id").(uuid.UUID)
@@ -161,8 +213,12 @@ func GetBalanceHandler(db *database.Queries) http.HandlerFunc {
 			return
 		}
 
-		utils.RespondWithJSON(w, http.StatusOK, map[string]float64{
-			"balance": utils.ParseStringToFloat64(wallet.Balance),
+		utils.RespondWithJSON(w, http.StatusOK, map[string]interface{}{
+			"balances": map[string]float64{
+				"USD": utils.ParseStringToFloat64(wallet.BalanceUsd),
+				"RUB": utils.ParseStringToFloat64(wallet.BalanceRub),
+				"EUR": utils.ParseStringToFloat64(wallet.BalanceEur),
+			},
 		})
 	}
 }

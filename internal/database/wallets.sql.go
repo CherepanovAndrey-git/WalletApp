@@ -12,13 +12,8 @@ import (
 )
 
 const createWallet = `-- name: CreateWallet :one
-INSERT INTO wallets (
-    user_id,
-    balance
-) VALUES (
-    $1,
-    '0.00'
-) RETURNING id, uuid, user_id, balance, created_at, updated_at
+INSERT INTO wallets (user_id) VALUES ($1)
+    RETURNING id, uuid, user_id, balance_usd, balance_rub, balance_eur, created_at, updated_at
 `
 
 func (q *Queries) CreateWallet(ctx context.Context, userID uuid.UUID) (Wallet, error) {
@@ -28,27 +23,18 @@ func (q *Queries) CreateWallet(ctx context.Context, userID uuid.UUID) (Wallet, e
 		&i.ID,
 		&i.Uuid,
 		&i.UserID,
-		&i.Balance,
+		&i.BalanceUsd,
+		&i.BalanceRub,
+		&i.BalanceEur,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
 }
 
-const getWalletBalance = `-- name: GetWalletBalance :one
-SELECT balance FROM wallets
-WHERE user_id = $1
-`
-
-func (q *Queries) GetWalletBalance(ctx context.Context, userID uuid.UUID) (string, error) {
-	row := q.db.QueryRowContext(ctx, getWalletBalance, userID)
-	var balance string
-	err := row.Scan(&balance)
-	return balance, err
-}
-
 const getWalletByUserID = `-- name: GetWalletByUserID :one
-SELECT id, uuid, user_id, balance, created_at, updated_at FROM wallets 
+SELECT id, uuid, user_id, balance_usd, balance_rub, balance_eur, created_at, updated_at
+FROM wallets
 WHERE user_id = $1 LIMIT 1
 `
 
@@ -59,27 +45,62 @@ func (q *Queries) GetWalletByUserID(ctx context.Context, userID uuid.UUID) (Wall
 		&i.ID,
 		&i.Uuid,
 		&i.UserID,
-		&i.Balance,
+		&i.BalanceUsd,
+		&i.BalanceRub,
+		&i.BalanceEur,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
 }
 
-const updateWalletBalance = `-- name: UpdateWalletBalance :exec
+const updateEURBalance = `-- name: UpdateEURBalance :exec
 UPDATE wallets
-SET 
-    balance = CAST(balance AS DECIMAL(18,2)) + CAST($1 AS DECIMAL(18,2)),
+SET balance_eur = balance_eur + CAST($1 AS NUMERIC(18,2)),
     updated_at = now()
 WHERE user_id = $2
 `
 
-type UpdateWalletBalanceParams struct {
+type UpdateEURBalanceParams struct {
 	Amount string
-	Userid uuid.UUID
+	UserID uuid.UUID
 }
 
-func (q *Queries) UpdateWalletBalance(ctx context.Context, arg UpdateWalletBalanceParams) error {
-	_, err := q.db.ExecContext(ctx, updateWalletBalance, arg.Amount, arg.Userid)
+func (q *Queries) UpdateEURBalance(ctx context.Context, arg UpdateEURBalanceParams) error {
+	_, err := q.db.ExecContext(ctx, updateEURBalance, arg.Amount, arg.UserID)
+	return err
+}
+
+const updateRUBBalance = `-- name: UpdateRUBBalance :exec
+UPDATE wallets
+SET balance_rub = balance_rub + CAST($1 AS NUMERIC(18,2)),
+    updated_at = now()
+WHERE user_id = $2
+`
+
+type UpdateRUBBalanceParams struct {
+	Amount string
+	UserID uuid.UUID
+}
+
+func (q *Queries) UpdateRUBBalance(ctx context.Context, arg UpdateRUBBalanceParams) error {
+	_, err := q.db.ExecContext(ctx, updateRUBBalance, arg.Amount, arg.UserID)
+	return err
+}
+
+const updateUSDBalance = `-- name: UpdateUSDBalance :exec
+UPDATE wallets
+SET balance_usd = balance_usd + CAST($1 AS NUMERIC(18,2)),
+    updated_at = now()
+WHERE user_id = $2
+`
+
+type UpdateUSDBalanceParams struct {
+	Amount string
+	UserID uuid.UUID
+}
+
+func (q *Queries) UpdateUSDBalance(ctx context.Context, arg UpdateUSDBalanceParams) error {
+	_, err := q.db.ExecContext(ctx, updateUSDBalance, arg.Amount, arg.UserID)
 	return err
 }

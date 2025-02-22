@@ -21,10 +21,12 @@ type User struct {
 }
 
 type Wallet struct {
-	ID        int32
-	Uuid      uuid.UUID
-	UserID    uuid.UUID
-	Balance   string
-	CreatedAt sql.NullTime
-	UpdatedAt sql.NullTime
+	ID         int32
+	Uuid       uuid.UUID
+	UserID     uuid.UUID
+	BalanceUsd string
+	BalanceRub string
+	BalanceEur string
+	CreatedAt  sql.NullTime
+	UpdatedAt  sql.NullTime
 }

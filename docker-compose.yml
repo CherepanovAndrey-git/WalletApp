@@ -7,7 +7,7 @@
 services:
   db:
     image: postgres:15
-    container_name: wallet-app-db
+    container_name: gw-wallet-db
     ports:
       - "5432:5432"
     environment:
@@ -19,7 +19,7 @@ services:
 
   app:
     build: .
-    container_name: wallet-app
+    container_name: gw-wallet
     ports:
       - "${PORT}:${PORT}"
     environment:
