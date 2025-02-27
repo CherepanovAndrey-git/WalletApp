@@ -1,4 +1,4 @@
-FROM golang:1.23-alpine AS builder
+FROM golang:1.24-alpine AS builder
 WORKDIR /app
 
 
@@ -19,11 +19,9 @@ COPY --from=builder /go/bin/goose /app/goose
 
 COPY .env .
 COPY ./sql/schema /app/sql
-
 COPY wait-for-db.sh /app/wait-for-db.sh
-
-
 COPY entrypoint.sh /app/entrypoint.sh
+
 RUN chmod +x /app/wait-for-db.sh /app/entrypoint.sh /app/goose
 
 EXPOSE ${PORT}

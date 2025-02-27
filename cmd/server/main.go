@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"time"
+	"wallet-app/internal/exchange"
 
 	httpSwagger "github.com/swaggo/http-swagger"
 	"wallet-app/internal/database"
@@ -21,6 +22,7 @@ import (
 )
 
 func main() {
+
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Couldn't load the .env file.")
@@ -31,6 +33,13 @@ func main() {
 		log.Fatal("PORT is not found in the environment.")
 	}
 	fmt.Println("PORT:", port)
+
+	// GRPC
+	exchangeClient, err := exchange.NewClient(os.Getenv("EXCHANGER_GRPC_ADDR"))
+	if err != nil {
+		log.Fatal("Failed to create exchange client:", err)
+	}
+	defer exchangeClient.Close()
 
 	dbURL := os.Getenv("DB_URL")
 	if dbURL == "" {
@@ -53,10 +62,12 @@ func main() {
 	fmt.Println("Successfully connected to database")
 
 	apiCfg := apicfg.ApiConfig{
-		DB: database.New(conn),
+		DB:     database.New(conn),
+		Client: exchangeClient,
 	}
 
 	router := chi.NewRouter()
+	exchangeHandler := handlers.NewExchangeHandler(apiCfg.Client)
 
 	router.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{"https://*", "http://*"},
@@ -82,6 +93,8 @@ func main() {
 		r.Post("/wallet/deposit", handlers.WalletOperationHandler(apiCfg.DB))
 		r.Post("/wallet/withdraw", handlers.WalletOperationHandler(apiCfg.DB))
 		r.Get("/balance", handlers.GetBalanceHandler(apiCfg.DB))
+		r.Get("/exchange/rates", exchangeHandler.GetRates)
+		r.Post("/exchange", exchangeHandler.ExchangeCurrency(apiCfg.DB))
 	})
 
 	v1Router.Get("/swagger/*", httpSwagger.Handler(

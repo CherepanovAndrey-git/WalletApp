@@ -1,7 +1,11 @@
 package apicfg
 
-import "wallet-app/internal/database"
+import (
+	"wallet-app/internal/database"
+	"wallet-app/internal/exchange"
+)
 
 type ApiConfig struct {
-	DB *database.Queries
+	DB     *database.Queries
+	Client *exchange.Client
 }
