@@ -28,6 +28,7 @@ type WalletOperationRequest struct {
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 500 {object} map[string]string "Internal server error"
 // @Router /v1/create-wallet [post]
+
 func CreateWalletHandler(db *database.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, ok := r.Context().Value("user_id").(uuid.UUID)
@@ -36,7 +37,6 @@ func CreateWalletHandler(db *database.Queries) http.HandlerFunc {
 			return
 		}
 
-		// Check if wallet already exists
 		existingWallet, err := db.GetWalletByUserID(r.Context(), userID)
 		if err == nil {
 			utils.RespondWithJSON(w, http.StatusOK, map[string]interface{}{
@@ -53,7 +53,6 @@ func CreateWalletHandler(db *database.Queries) http.HandlerFunc {
 			return
 		}
 
-		// Create new wallet
 		wallet, err := db.CreateWallet(r.Context(), userID)
 		if err != nil {
 			utils.RespondWithError(w, http.StatusInternalServerError, "Failed to create wallet")
@@ -83,6 +82,7 @@ func CreateWalletHandler(db *database.Queries) http.HandlerFunc {
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 500 {object} map[string]string "Internal server error"
 // @Router /v1/wallet/{operation} [post]
+
 func WalletOperationHandler(db *database.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, ok := r.Context().Value("user_id").(uuid.UUID)
@@ -97,14 +97,12 @@ func WalletOperationHandler(db *database.Queries) http.HandlerFunc {
 			return
 		}
 
-		// Validate currency
 		validCurrencies := map[string]bool{"USD": true, "RUB": true, "EUR": true}
 		if !validCurrencies[req.Currency] {
 			utils.RespondWithError(w, http.StatusBadRequest, "Invalid currency. Allowed: USD, RUB, EUR")
 			return
 		}
 
-		// Validate amount
 		if req.Amount <= 0 {
 			utils.RespondWithError(w, http.StatusBadRequest, "Amount must be positive")
 			return
@@ -116,7 +114,6 @@ func WalletOperationHandler(db *database.Queries) http.HandlerFunc {
 			operationAmount = -operationAmount
 		}
 
-		// Handle withdrawal specific checks
 		if !isDeposit {
 			wallet, err := db.GetWalletByUserID(r.Context(), userID)
 			if err != nil {
@@ -142,7 +139,6 @@ func WalletOperationHandler(db *database.Queries) http.HandlerFunc {
 
 		amountStr := fmt.Sprintf("%.2f", operationAmount)
 
-		// Update the appropriate currency balance
 		var err error
 		switch req.Currency {
 		case "USD":
@@ -167,7 +163,6 @@ func WalletOperationHandler(db *database.Queries) http.HandlerFunc {
 			return
 		}
 
-		// Get updated wallet state
 		updatedWallet, err := db.GetWalletByUserID(r.Context(), userID)
 		if err != nil {
 			utils.RespondWithError(w, http.StatusInternalServerError, "Failed to fetch updated balance")

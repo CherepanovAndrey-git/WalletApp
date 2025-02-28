@@ -8,6 +8,8 @@ services:
   db:
     image: postgres:15
     container_name: gw-wallet-db
+    networks:
+      - shared-network
     ports:
       - "5432:5432"
     environment:
@@ -20,6 +22,8 @@ services:
   app:
     build: .
     container_name: gw-wallet
+    networks:
+      - shared-network
     ports:
       - "${PORT}:${PORT}"
     environment:
@@ -34,3 +38,7 @@ services:
 
 volumes:
   postgres_data:
+
+networks:
+  shared-network:
+    external: true

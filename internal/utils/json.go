@@ -2,14 +2,20 @@ package utils
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 // ParseStringToFloat64 converts a string to float64.
 func ParseStringToFloat64(value string) float64 {
-	parsedValue, _ := strconv.ParseFloat(value, 64)
-	return parsedValue
+	parsed, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
+	if err != nil {
+		log.Printf("Failed to parse balance: %v", err)
+		return 0
+	}
+	return parsed
 }
 
 // RespondWithError sends an error response.

@@ -26,9 +26,7 @@ func NewClient(addr string) (*Client, error) {
 	}, nil
 }
 
-func (c *Client) GetRates() (map[string]float32, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
+func (c *Client) GetRates(ctx context.Context) (map[string]float32, error) {
 
 	resp, err := c.client.GetExchangeRates(ctx, &pb.Empty{})
 	if err != nil {

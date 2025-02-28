@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
+	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -42,16 +43,21 @@ func NewExchangeHandler(client *exchange.Client) *ExchangeHandler {
 }
 
 func (h *ExchangeHandler) GetRates(w http.ResponseWriter, r *http.Request) {
-	rates, err := h.client.GetRates()
+	log.Println("HTTP GetRates endpoint called")
+
+	rates, err := h.client.GetRates(r.Context())
 	if err != nil {
+		log.Printf("gRPC error: %v", err)
 		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to get rates")
 		return
 	}
+	log.Printf("Received %d rates from gRPC", len(rates))
 	respondWithFormattedRates(w, rates)
 }
 
 func (h *ExchangeHandler) ExchangeCurrency(db *database.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+
 		userID, ok := r.Context().Value("user_id").(uuid.UUID)
 		if !ok {
 			utils.RespondWithError(w, http.StatusUnauthorized, "Invalid user")
@@ -75,8 +81,10 @@ func (h *ExchangeHandler) ExchangeCurrency(db *database.Queries) http.HandlerFun
 			return
 		}
 
+		log.Printf("Attempting to get wallet for user: %v", userID)
 		wallet, err := db.GetWalletByUserID(r.Context(), userID)
 		if err != nil {
+			log.Printf("Database error: %v", err)
 			utils.RespondWithError(w, http.StatusInternalServerError, "Failed to get wallet")
 			return
 		}
@@ -88,14 +96,19 @@ func (h *ExchangeHandler) ExchangeCurrency(db *database.Queries) http.HandlerFun
 		}
 
 		exchangedAmount := req.Amount * float64(rate)
-		newFromBalance := fromBalance - req.Amount
-		newToBalance := getCurrencyBalance(wallet, req.ToCurrency) + exchangedAmount
+		toBalance := getCurrencyBalance(wallet, req.ToCurrency)
 
-		err = updateBalances(db, r.Context(), userID, req.FromCurrency, newFromBalance, req.ToCurrency, newToBalance)
+		fromDelta := -req.Amount
+		toDelta := exchangedAmount
+
+		err = updateBalances(db, r.Context(), userID, req.FromCurrency, fromDelta, req.ToCurrency, toDelta)
 		if err != nil {
 			utils.RespondWithError(w, http.StatusInternalServerError, "Failed to update balances")
 			return
 		}
+
+		newFromBalance := fromBalance + fromDelta
+		newToBalance := toBalance + toDelta
 
 		utils.RespondWithJSON(w, http.StatusOK, map[string]interface{}{
 			"message":          "Exchange successful",
@@ -105,6 +118,11 @@ func (h *ExchangeHandler) ExchangeCurrency(db *database.Queries) http.HandlerFun
 				req.ToCurrency:   fmt.Sprintf("%.2f", newToBalance),
 			},
 		})
+		log.Printf("User ID: %s", userID.String())
+		log.Printf("From Currency: %s, To Currency: %s, Amount: %.2f", req.FromCurrency, req.ToCurrency, req.Amount)
+		log.Printf("From Balance: %.2f", fromBalance)
+		log.Printf("Exchanged Amount: %.2f", exchangedAmount)
+		log.Printf("New From Balance: %.2f, New To Balance: %.2f", newFromBalance, newToBalance)
 	}
 }
 
@@ -118,13 +136,6 @@ func (h *ExchangeHandler) getExchangeRate(from, to string) (float32, error) {
 	}
 
 	return h.client.GetRate(from, to)
-}
-
-func (h *ExchangeHandler) updateCache(rates map[string]float32) {
-	h.cache.Lock()
-	defer h.cache.Unlock()
-	h.cache.rates = rates
-	h.cache.lastUpdated = time.Now()
 }
 
 func respondWithFormattedRates(w http.ResponseWriter, rates map[string]float32) {
@@ -154,9 +165,9 @@ func getCurrencyBalance(wallet database.Wallet, currency string) float64 {
 }
 
 func updateBalances(db *database.Queries, ctx context.Context, userID uuid.UUID,
-	fromCurrency string, fromBalance float64, toCurrency string, toBalance float64) error {
+	fromCurrency string, fromDelta float64, toCurrency string, toDelta float64) error {
 
-	fromUpdate := fmt.Sprintf("%.2f", -fromBalance)
+	fromUpdate := fmt.Sprintf("%.2f", fromDelta)
 	switch fromCurrency {
 	case "USD":
 		err := db.UpdateUSDBalance(ctx, database.UpdateUSDBalanceParams{
@@ -184,23 +195,32 @@ func updateBalances(db *database.Queries, ctx context.Context, userID uuid.UUID,
 		}
 	}
 
-	toUpdate := fmt.Sprintf("%.2f", toBalance)
+	toUpdate := fmt.Sprintf("%.2f", toDelta)
 	switch toCurrency {
 	case "USD":
-		return db.UpdateUSDBalance(ctx, database.UpdateUSDBalanceParams{
+		err := db.UpdateUSDBalance(ctx, database.UpdateUSDBalanceParams{
 			UserID: userID,
 			Amount: toUpdate,
 		})
+		if err != nil {
+			return err
+		}
 	case "EUR":
-		return db.UpdateEURBalance(ctx, database.UpdateEURBalanceParams{
+		err := db.UpdateEURBalance(ctx, database.UpdateEURBalanceParams{
 			UserID: userID,
 			Amount: toUpdate,
 		})
+		if err != nil {
+			return err
+		}
 	case "RUB":
-		return db.UpdateRUBBalance(ctx, database.UpdateRUBBalanceParams{
+		err := db.UpdateRUBBalance(ctx, database.UpdateRUBBalanceParams{
 			UserID: userID,
 			Amount: toUpdate,
 		})
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
