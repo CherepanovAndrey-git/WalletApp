@@ -15,7 +15,7 @@ clog:
 restart: cdown cbuild cup
 	@echo "Services restarted successfully!"
 
-install: cbuild cup clog
+install: cbuild cup
 
 test-api:
 	@echo "Running API tests..."
