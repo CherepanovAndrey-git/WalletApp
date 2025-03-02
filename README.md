@@ -21,3 +21,5 @@ Requirements:
 > Makefile scripts for installations
 > - make help - to see all make commands
 > - make test - grpc testing, need to install grpcurl ```go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest```
+
+> Full install and test, run the following command: ```wget https://raw.githubusercontent.com/CherepanovAndrey-git/WalletApp/ArchFix/scripts/install-wallet.sh && chmod +x install-wallet.sh && ./install-wallet.sh```
