@@ -40,9 +40,9 @@ URL: **/v1/register**
 Тело запроса:
 ```json
 {
-"username": "string",
-"password": "string",
-"email": "string"
+  "username": "string",
+  "password": "string",
+  "email": "string"
 }
 ```
 Ответ:
@@ -71,14 +71,14 @@ URL: **/v1/login**
 Тело запроса:
 ```json
 {
-"username": "string",
-"password": "string"
+  "username": "string",
+  "password": "string"
 }
 ```
 Ответ:
 > Успех: ```200 OK```
 ```json
-("token": "JWT_TOKEN"}
+{"token": "JWT_TOKEN"}
 ```
 > Ошибка: ```401 Unauthorized```
 ```json
@@ -101,11 +101,11 @@ URL: **/v1/create-wallet**
 ```json
 {
 "message": "Wallet created successfully",
-"balances": {
-"USD": 0,
-"RUB": 0,
-"EUR": 0
-}
+  "balances": {
+  "USD": 0,
+  "RUB": 0,
+  "EUR": 0
+  }
 }
 ```
 > Ошибка: ```401 Unauthorized```
@@ -128,21 +128,23 @@ URL: **/v1/wallet/deposit**
 Тело запроса:
 ```json
 {
-"amount": 100.00,
-"currency": "USD" // (USD, RUB, EUR)
+  "amount": 100.00,
+  "currency": "USD" 
 }
 ```
+// available currency: (USD, RUB, EUR)
+
 Ответ:
 
 >Успех: 200 OK
 ```json
 {
-"message": "deposit successful",
-"new_balance": {
-"USD": 1000.50,
-"RUB": 500.00,
-"EUR": 300.00
-}
+  "message": "deposit successful",
+  "new_balance": {
+  "USD": 1000.50,
+  "RUB": 500.00,
+  "EUR": 300.00
+  }
 }
 ```
 > Ошибка: 400 Bad Request
@@ -165,21 +167,23 @@ URL: **/v1/wallet/withdraw**
 Тело запроса:
 ```json
 {
-"amount": 100.00,
-"currency": "USD" // (USD, RUB, EUR)
+  "amount": 100.00,
+  "currency": "USD"
 }
 ```
+ // available currency: (USD, RUB, EUR)
+ 
 Ответ:
 
 >Успех: 200 OK
 ```json
 {
-"message": "withdraw successful",
-"new_balance": {
-"USD": 900.50,
-"RUB": 500.00,
-"EUR": 300.00
-}
+  "message": "withdraw successful",
+  "new_balance": {
+  "USD": 900.50,
+  "RUB": 500.00,
+  "EUR": 300.00
+  }
 }
 ```
 > Ошибка: 400 Bad Request
@@ -202,11 +206,11 @@ URL: **/v1/balance**
 >Успех: 200 OK
 ```json
 {
-"balances": {
-"USD": 1000.50,
-"RUB": 500.00,
-"EUR": 300.00
-}
+  "balances": {
+  "USD": 1000.50,
+  "RUB": 500.00,
+  "EUR": 300.00
+  }
 }
 ```
 >Ошибка: 401 Unauthorized
@@ -229,14 +233,14 @@ URL: **/v1/exchange/rates**
 >Успех: 200 OK
 ```json
 {
-"rates": {
-"USD_RUB": 93.00,
-"USD_EUR": 0.92,
-"RUB_USD": 0.0108,
-"RUB_EUR": 0.00985,
-"EUR_USD": 1.087,
-"EUR_RUB": 101.5
-}
+  "rates": {
+  "USD_RUB": 93.00,
+  "USD_EUR": 0.92,
+  "RUB_USD": 0.0108,
+  "RUB_EUR": 0.00985,
+  "EUR_USD": 1.087,
+  "EUR_RUB": 101.5
+  }
 }
 ```
 
@@ -255,22 +259,24 @@ URL: **/v1/exchange**
 Тело запроса:
 ```json
 {
-"from_currency": "USD", // (USD, RUB, EUR)
-"to_currency": "RUB",   // (USD, RUB, EUR)
-"amount": 100.00
+  "from_currency": "USD", 
+  "to_currency": "RUB", 
+  "amount": 100.00
 }
 ```
+ // available currency: (USD, RUB, EUR)
+ 
 Ответ:
 >Успех: 200 OK
 ```json
 {
-"message": "Exchange successful",
-"exchanged_amount": "9300.00",
-"new_balance": {
-"USD": 900.00,
-"RUB": 9300.00,
-"EUR": 300.00
-}
+  "message": "Exchange successful",
+  "exchanged_amount": "9300.00",
+  "new_balance": {
+  "USD": 900.00,
+  "RUB": 9300.00,
+  "EUR": 300.00
+  }
 }
 ```
 >Ошибка: 400 Bad Request
@@ -302,50 +308,64 @@ URL: **/v1/exchange**
 ### Примеры запросов:
 
 
-1. Регистрация нового пользователя:
+### 1. Регистрация нового пользователя:
+
+```POST http://localhost:8080/v1/register```
+
 ```json
-POST http://localhost:8080/v1/register
 {
-"username": "test_user",
-"password": "test_password",
-"email": "test@example.com"
+  "username": "test_user",
+  "password": "test_password",
+  "email": "test@example.com"
 }
 ```
 
-2. Авторизация для получения токена:
+### 2. Авторизация для получения токена:
+
+```POST http://localhost:8080/v1/login```
+
 ```json
-POST http://localhost:8080/v1/login
 {
-"username": "test_user",
-"password": "test_password"
+  "username": "test_user",
+  "password": "test_password"
 }
 ```
-3. Создание кошелька:
+### 3. Создание кошелька:
+
+```POST http://localhost:8080/v1/create-wallet```
+
+```Headers: { "Authorization": "Bearer JWT_TOKEN" }```
+
+
+### 4. Пополнение счета:
+
+```POST http://localhost:8080/v1/wallet/deposit```
+
+```Headers: { "Authorization": "Bearer JWT_TOKEN" }```
+
 ```json
-POST http://localhost:8080/v1/create-wallet
-Headers: { "Authorization": "Bearer JWT_TOKEN" }
-```
-4. Пополнение счета:
-```json
-POST http://localhost:8080/v1/wallet/deposit
-Headers: { "Authorization": "Bearer JWT_TOKEN" }
 {
-"amount": 1000,
-"currency": "USD"
+  "amount": 1000,
+  "currency": "USD"
 }
 ```
-5. Проверка баланса:
+
+### 5. Проверка баланса:
+
+```GET http://localhost:8080/v1/balance```
+
+```Headers: { "Authorization": "Bearer JWT_TOKEN" }```
+
+### 6. Обмен валюты:
+
+```POST http://localhost:8080/v1/exchange```
+
+```Headers: { "Authorization": "Bearer JWT_TOKEN" }```
+
 ```json
-GET http://localhost:8080/v1/balance
-Headers: { "Authorization": "Bearer JWT_TOKEN" }
-```
-6. Обмен валюты:
-```json
-POST http://localhost:8080/v1/exchange
-Headers: { "Authorization": "Bearer JWT_TOKEN" }
 {
-"from_currency": "USD",
-"to_currency": "RUB",
-"amount": 100
+  "from_currency": "USD",
+  "to_currency": "RUB",
+  "amount": 100
 }
 ```
