@@ -1,9 +1,11 @@
 #!/bin/bash
 
+# Default updates, installing make and jq
 sudo apt-get update
-sudo apt-get install -y git curl make
+sudo apt-get install -y git curl make jq
 
-# Installing Docker 
+# if docker not installed, run installation
+
 if ! command -v docker &> /dev/null; then
     echo "Installing Docker..."
     curl -fsSL https://get.docker.com -o get-docker.sh
@@ -13,8 +15,7 @@ if ! command -v docker &> /dev/null; then
 else
     echo "Docker is already installed."
 fi
-
-# Installing Docker Compose if not already installed
+# if docker-compose not installed, run installation
 if ! command -v docker-compose &> /dev/null; then
     echo "Installing Docker Compose..."
     sudo curl -L "https://github.com/docker/compose/releases/download/v2.20.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
@@ -24,7 +25,7 @@ else
     echo "Docker Compose is already installed."
 fi
 
-# Creating shared Docker network if it doesn't exist.
+# creating shared network since both microservices should work in the same network
 if ! docker network inspect shared-network &> /dev/null; then
     echo "Creating shared-network..."
     sudo docker network create shared-network
@@ -33,7 +34,7 @@ else
     echo "shared-network already exists."
 fi
 
-# Clone repositories and install apps.
+# Cloning repos
 cd ~
 if [ ! -d "gw-wallet" ]; then
     echo "Cloning WalletApp repository..."
@@ -49,18 +50,25 @@ else
     echo "gw-exchanger repository already exists."
 fi
 
-
+# Installing microservices
 cd ~/gw-exchanger
 echo "Installing gw-exchanger..."
 make install
 
-
-sleep 15
-
+echo "Waiting for gw-exchanger to initialize..."
+sleep 30
 
 cd ~/gw-wallet
 echo "Installing gw-wallet..."
 make install
+
+echo "Waiting for gw-wallet to initialize..."
+sleep 30
+
+# Api tests
+echo "Running API tests..."
+cd ~/gw-wallet
+make test-api
 
 echo "Installation complete!"
 echo "Wallet API should be available at http://localhost:8080/v1/"
