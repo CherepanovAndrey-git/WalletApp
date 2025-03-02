@@ -29,7 +29,7 @@ paths:
     get:
       description: Get current balance of user's wallet
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: Wallet balance
@@ -50,17 +50,17 @@ paths:
               type: string
             type: object
       security:
-      - BearerAuth: []
+        - BearerAuth: []
       summary: Get wallet balance
       tags:
-      - wallet
+        - wallet
   /v1/create-wallet:
     post:
       consumes:
-      - application/json
+        - application/json
       description: Create a new wallet for authenticated user
       produces:
-      - application/json
+        - application/json
       responses:
         "201":
           description: Wallet created successfully
@@ -80,24 +80,24 @@ paths:
               type: string
             type: object
       security:
-      - BearerAuth: []
+        - BearerAuth: []
       summary: Create a new wallet
       tags:
-      - wallet
+        - wallet
   /v1/login:
     post:
       consumes:
-      - application/json
+        - application/json
       description: Authenticate user and return JWT token
       parameters:
-      - description: User login credentials
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/handlers.LoginRequest'
+        - description: User login credentials
+          in: body
+          name: request
+          required: true
+          schema:
+            $ref: '#/definitions/handlers.LoginRequest'
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: token
@@ -119,21 +119,21 @@ paths:
             type: object
       summary: Login user
       tags:
-      - auth
+        - auth
   /v1/register:
     post:
       consumes:
-      - application/json
+        - application/json
       description: Register a new user with username, email and password
       parameters:
-      - description: User registration details
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/handlers.RegisterRequest'
+        - description: User registration details
+          in: body
+          name: request
+          required: true
+          schema:
+            $ref: '#/definitions/handlers.RegisterRequest'
       produces:
-      - application/json
+        - application/json
       responses:
         "201":
           description: User registered successfully
@@ -155,21 +155,21 @@ paths:
             type: object
       summary: Register a new user
       tags:
-      - auth
+        - auth
   /v1/wallet/deposit:
     post:
       consumes:
-      - application/json
+        - application/json
       description: Deposit money into user's wallet
       parameters:
-      - description: Deposit details
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/handlers.WalletOperationRequest'
+        - description: Deposit details
+          in: body
+          name: request
+          required: true
+          schema:
+            $ref: '#/definitions/handlers.WalletOperationRequest'
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: Operation successful
@@ -195,8 +195,8 @@ paths:
               type: string
             type: object
       security:
-      - BearerAuth: []
+        - BearerAuth: []
       summary: Deposit money
       tags:
-      - wallet
+        - wallet
 swagger: "2.0"

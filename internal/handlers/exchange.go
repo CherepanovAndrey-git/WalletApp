@@ -42,6 +42,14 @@ func NewExchangeHandler(client *exchange.Client) *ExchangeHandler {
 	}
 }
 
+// @Summary Get exchange rates
+// @Description Get current exchange rates
+// @Tags exchange
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]float32 "Exchange rates"
+// @Router /v1/exchange/rates [get]
+
 func (h *ExchangeHandler) GetRates(w http.ResponseWriter, r *http.Request) {
 	log.Println("HTTP GetRates endpoint called")
 
@@ -54,6 +62,17 @@ func (h *ExchangeHandler) GetRates(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Received %d rates from gRPC", len(rates))
 	respondWithFormattedRates(w, rates)
 }
+
+// @Summary Exchange currency
+// @Description Exchange between different currencies
+// @Tags exchange
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body handlers.ExchangeRequest true "Exchange details"
+// @Success 200 {object} models.ExchangeResponseSwag "Exchange successful"
+// @Failure 400 {object} map[string]string "Invalid request"
+// @Router /v1/exchange [post]
 
 func (h *ExchangeHandler) ExchangeCurrency(db *database.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

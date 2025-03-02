@@ -90,8 +90,10 @@ func main() {
 	v1Router.Group(func(r chi.Router) {
 		r.Use(middleware.AuthMiddleware)
 		r.Post("/create-wallet", handlers.CreateWalletHandler(apiCfg.DB))
-		r.Post("/wallet/deposit", handlers.WalletOperationHandler(apiCfg.DB))
-		r.Post("/wallet/withdraw", handlers.WalletOperationHandler(apiCfg.DB))
+
+		// Updated to use a single endpoint for both operations
+		r.Post("/wallet/{operation}", handlers.WalletOperationHandler(apiCfg.DB))
+
 		r.Get("/balance", handlers.GetBalanceHandler(apiCfg.DB))
 		r.Get("/exchange/rates", exchangeHandler.GetRates)
 		r.Post("/exchange", exchangeHandler.ExchangeCurrency(apiCfg.DB))

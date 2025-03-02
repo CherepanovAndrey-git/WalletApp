@@ -28,7 +28,7 @@ type RegisterRequest struct {
 // @Accept json
 // @Produce json
 // @Param request body RegisterRequest true "User registration details"
-// @Success 201 {object} map[string]string "User registered successfully"
+// @Success 201 {object} models.AuthResponseSwag "User registered successfully"
 // @Failure 400 {object} map[string]string "Invalid request payload"
 // @Failure 409 {object} map[string]string "User already exists"
 // @Router /v1/register [post]
@@ -69,6 +69,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// @Example {object} {"username": "johndoe", "password": "secretpass123"}
 type LoginRequest struct {
 	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required"`
@@ -80,9 +81,9 @@ type LoginRequest struct {
 // @Accept json
 // @Produce json
 // @Param request body LoginRequest true "User login credentials"
-// @Success 200 {object} map[string]string "token"
+// @Success 200 {object} models.AuthResponseSwag "Authentication successful"
 // @Failure 400 {object} map[string]string "Invalid request payload"
-// @Failure 401 {object} map[string]string "Invalid credentials"
+// @Failure 401 {object} utils.ErrorResponse "Invalid credentials"
 // @Router /v1/login [post]
 
 // Login takes email and password

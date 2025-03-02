@@ -9,6 +9,7 @@ NC='\033[0m' # No Color
 BASE_URL="http://localhost:8080/v1"
 DEPOSIT_AMOUNT=1000
 WITHDRAWAL_AMOUNT=500
+EXCHANGE_AMOUNT=100
 
 # Colored output
 print_step() {
@@ -22,42 +23,6 @@ print_success() {
 print_error() {
     echo -e "${RED}✗ $1${NC}"
 }
-
-print_step "Registering new user"
-REGISTER_RESPONSE=$(curl -s -X POST "$BASE_URL/register" \
-    -H "Content-Type: application/json" \
-    -d '{
-        "username": "test_username_3",
-        "email": "test_username_3@example.com",
-        "password": "test_username_3"
-    }')
-echo $REGISTER_RESPONSE | jq
-print_success "Registration completed"
-
-print_step "Logging in"
-LOGIN_RESPONSE=$(curl -s -X POST "$BASE_URL/login" \
-    -H "Content-Type: application/json" \
-    -d '{
-        "username": "test_username_3",
-        "password": "test_username_3"
-    }')
-TOKEN=$(echo $LOGIN_RESPONSE | jq -r '.token')
-
-if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
-    print_error "Failed to get token"
-    echo "Login response: $LOGIN_RESPONSE"
-    exit 1
-fi
-
-print_success "Successfully logged in"
-echo "Token: ${TOKEN:0:20}..."
-
-print_step "Creating wallet"
-WALLET_RESPONSE=$(curl -s -X POST "$BASE_URL/create-wallet" \
-    -H "Authorization: Bearer $TOKEN" \
-    -H "Content-Type: application/json")
-echo $WALLET_RESPONSE | jq
-print_success "Wallet created with initial balance"
 
 # Function to perform currency operations
 perform_currency_operations() {
@@ -88,10 +53,78 @@ perform_currency_operations() {
     print_success "Withdrawal of $WITHDRAWAL $CURRENCY completed"
 }
 
+# Function to perform currency exchange
+perform_currency_exchange() {
+    local FROM=$1
+    local TO=$2
+    local AMOUNT=$3
 
+    print_step "Exchanging $AMOUNT $FROM to $TO"
+    EXCHANGE_RESPONSE=$(curl -s -X POST "$BASE_URL/exchange" \
+        -H "Authorization: Bearer $TOKEN" \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"from_currency\": \"$FROM\",
+            \"to_currency\": \"$TO\",
+            \"amount\": $AMOUNT
+        }")
+    echo $EXCHANGE_RESPONSE | jq
+    print_success "Exchange of $AMOUNT $FROM to $TO completed"
+}
+
+
+print_step "Registering new user"
+REGISTER_RESPONSE=$(curl -s -X POST "$BASE_URL/register" \
+    -H "Content-Type: application/json" \
+    -d '{
+        "username": "test_username_4",
+        "email": "test_username_4@example.com",
+        "password": "test_username_4"
+    }')
+echo $REGISTER_RESPONSE | jq
+print_success "Registration completed"
+
+print_step "Logging in"
+LOGIN_RESPONSE=$(curl -s -X POST "$BASE_URL/login" \
+    -H "Content-Type: application/json" \
+    -d '{
+        "username": "test_username_4",
+        "password": "test_username_4"
+    }')
+TOKEN=$(echo $LOGIN_RESPONSE | jq -r '.token')
+
+if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+    print_error "Failed to get token"
+    echo "Login response: $LOGIN_RESPONSE"
+    exit 1
+fi
+
+print_success "Successfully logged in"
+echo "Token: ${TOKEN:0:20}..."
+
+print_step "Creating wallet"
+WALLET_RESPONSE=$(curl -s -X POST "$BASE_URL/create-wallet" \
+    -H "Authorization: Bearer $TOKEN" \
+    -H "Content-Type: application/json")
+echo $WALLET_RESPONSE | jq
+print_success "Wallet created with initial balance"
+
+# Perform currency operations
 perform_currency_operations "USD" $DEPOSIT_AMOUNT $WITHDRAWAL_AMOUNT
 perform_currency_operations "RUB" $DEPOSIT_AMOUNT $WITHDRAWAL_AMOUNT
 perform_currency_operations "EUR" $DEPOSIT_AMOUNT $WITHDRAWAL_AMOUNT
+
+print_step "Getting exchange rates"
+RATES_RESPONSE=$(curl -s -X GET "$BASE_URL/exchange/rates" \
+    -H "Authorization: Bearer $TOKEN")
+echo $RATES_RESPONSE | jq
+print_success "Exchange rates retrieved"
+
+# Perform currency exchanges
+perform_currency_exchange "USD" "RUB" $EXCHANGE_AMOUNT
+perform_currency_exchange "RUB" "USD" $EXCHANGE_AMOUNT
+perform_currency_exchange "RUB" "EUR" $EXCHANGE_AMOUNT
+perform_currency_exchange "EUR" "USD" $EXCHANGE_AMOUNT
 
 print_step "Final balance"
 FINAL_BALANCE_RESPONSE=$(curl -s -X GET "$BASE_URL/balance" \
@@ -109,6 +142,11 @@ echo -e "  Withdrawal: ${RED}-$WITHDRAWAL_AMOUNT RUB${NC}"
 echo -e "EUR Operations:"
 echo -e "  Deposit:    ${GREEN}+$DEPOSIT_AMOUNT EUR${NC}"
 echo -e "  Withdrawal: ${RED}-$WITHDRAWAL_AMOUNT EUR${NC}"
+echo -e "Exchange Operations:"
+echo -e "  USD → RUB:  ${GREEN}$EXCHANGE_AMOUNT USD${NC}"
+echo -e "  RUB → USD:  ${GREEN}$EXCHANGE_AMOUNT RUB${NC}"
+echo -e "  RUB → EUR:  ${GREEN}$EXCHANGE_AMOUNT RUB${NC}"
+echo -e "  EUR → USD:  ${GREEN}$EXCHANGE_AMOUNT EUR${NC}"
 echo -e "Final Balances:"
 echo -e "  USD: ${GREEN}$(echo $FINAL_BALANCE_RESPONSE | jq -r '.balances.USD')${NC}"
 echo -e "  RUB: ${GREEN}$(echo $FINAL_BALANCE_RESPONSE | jq -r '.balances.RUB')${NC}"

@@ -1,4 +1,4 @@
-.PHONY: cdown cbuild cup clog restart install scratch help test-api swagger
+.PHONY: cdown cbuild cup clog restart install help test-api
 
 cdown:
 	docker-compose down
@@ -23,11 +23,8 @@ test-api:
 
 prune:
 	docker-compose down -v --rmi all && docker system prune -f
-	
 
-swagger:
-	swag init -g cmd/server/main.go -o swagger/docs
-	
+
 help:
 	@echo "Available commands:"
 	@echo "  make install - Build and start services"
@@ -39,5 +36,4 @@ help:
 	@echo "  make test-api - Run API tests"
 	@echo "  make prune    - Full wipe and clean installation. Deletes containers, volumes and images, and system prune"
 
-	
-	
+

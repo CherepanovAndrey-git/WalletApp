@@ -5,14 +5,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/go-chi/chi"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"net/http"
-	"strings"
 	"wallet-app/internal/database"
 	"wallet-app/internal/utils"
 )
 
+// WalletResponseSwag represents wallet operation response
+type WalletResponseSwag struct {
+	Message    string             `json:"message" example:"Deposit successful"`
+	NewBalance map[string]float64 `json:"new_balance" example:"USD:1000.50,RUB:5000.00,EUR:300.00"`
+}
 type WalletOperationRequest struct {
 	Amount   float64 `json:"amount"`
 	Currency string  `json:"currency"`
@@ -24,7 +29,7 @@ type WalletOperationRequest struct {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Success 201 {object} map[string]interface{} "Wallet created successfully"
+// @Success 201 {object} handlers.WalletResponseSwag "Wallet created successfully"
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 500 {object} map[string]string "Internal server error"
 // @Router /v1/create-wallet [post]
@@ -76,8 +81,9 @@ func CreateWalletHandler(db *database.Queries) http.HandlerFunc {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param request body WalletOperationRequest true "Operation details"
-// @Success 200 {object} map[string]interface{} "Operation successful"
+// @Param operation path string true "Operation type" Enums(deposit, withdraw)
+// @Param request body models.WalletOperationRequestSwag true "Operation details"
+// @Success 200 {object} handlers.WalletResponseSwag "Operation successful"
 // @Failure 400 {object} map[string]string "Invalid request"
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 500 {object} map[string]string "Internal server error"
@@ -88,6 +94,13 @@ func WalletOperationHandler(db *database.Queries) http.HandlerFunc {
 		userID, ok := r.Context().Value("user_id").(uuid.UUID)
 		if !ok {
 			utils.RespondWithError(w, http.StatusUnauthorized, "Invalid user")
+			return
+		}
+
+		// Get the operation type from the URL path
+		operation := chi.URLParam(r, "operation")
+		if operation != "deposit" && operation != "withdraw" {
+			utils.RespondWithError(w, http.StatusBadRequest, "Invalid operation. Must be 'deposit' or 'withdraw'")
 			return
 		}
 
@@ -108,7 +121,7 @@ func WalletOperationHandler(db *database.Queries) http.HandlerFunc {
 			return
 		}
 
-		isDeposit := strings.HasSuffix(r.URL.Path, "/deposit")
+		isDeposit := operation == "deposit"
 		operationAmount := req.Amount
 		if !isDeposit {
 			operationAmount = -operationAmount
@@ -170,7 +183,7 @@ func WalletOperationHandler(db *database.Queries) http.HandlerFunc {
 		}
 
 		utils.RespondWithJSON(w, http.StatusOK, map[string]interface{}{
-			"message": "Operation successful",
+			"message": fmt.Sprintf("%s successful", operation),
 			"new_balance": map[string]float64{
 				"USD": utils.ParseStringToFloat64(updatedWallet.BalanceUsd),
 				"RUB": utils.ParseStringToFloat64(updatedWallet.BalanceRub),
@@ -185,7 +198,7 @@ func WalletOperationHandler(db *database.Queries) http.HandlerFunc {
 // @Tags wallet
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {object} map[string]map[string]float64 "Wallet balances"
+// @Success 200 {object} models.BalanceResponseSwag "Wallet balances"
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 404 {object} map[string]string "Wallet not found"
 // @Router /v1/balance [get]
